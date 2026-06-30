@@ -7,7 +7,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-pytest-brightgreen)
+[![tests](https://github.com/nicohris/trading-bot-showcase/actions/workflows/tests.yml/badge.svg)](https://github.com/nicohris/trading-bot-showcase/actions/workflows/tests.yml)
 ![Status](https://img.shields.io/badge/status-running%20live%20(paper)-success)
 
 ---
