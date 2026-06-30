@@ -1,9 +1,9 @@
-# 📈 Crypto Trading Bot — framework modulaire (Binance Spot)
+# 📈 Crypto Trading Bot — Modular Framework (Binance Spot)
 
-> Un moteur de trading algorithmique complet en Python : **backtest → paper trading → live**,
-> une même stratégie et un même risk manager partagés entre les trois modes, et un
-> backtester *walk-forward* garanti sans biais de lookahead. Déployé en paper trading
-> 24/7 sur une VM cloud.
+> A complete algorithmic trading engine in Python: **backtest → paper trading → live**,
+> with the *same* strategy and risk manager shared across all three modes, and a
+> *walk-forward* backtester that is guaranteed free of lookahead bias by construction.
+> Deployed 24/7 in paper trading on a cloud VM.
 
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -12,40 +12,39 @@
 
 ---
 
-## En une phrase
+## In one sentence
 
-Un bot de trading crypto **trend-following** sur Binance Spot, pensé comme un
-*système* qui produit un output concret (signaux → ordres → PnL mesurable), avec
-une architecture en couches stricte qui permet de tester en backtest exactement ce
-qui tourne en production.
+A crypto **trend-following** bot for Binance Spot, designed as a *system* that
+produces a concrete output (signals → orders → measurable PnL), with a strict
+layered architecture so that what you backtest is exactly what runs in production.
 
-> ℹ️ **À propos de ce dépôt (vitrine).** Le code publié ici inclut le framework
-> complet et une **stratégie de référence** documentée (`TrendFollowingV1`) qui
-> sert à démontrer l'architecture de bout en bout. La variante de stratégie
-> réellement déployée en live (paramètres calibrés, filtres de régime
-> additionnels) est gardée privée — seules ses **grandes lignes** sont décrites
-> ci-dessous.
+> ℹ️ **About this repository (showcase).** The code published here includes the
+> full framework and a documented **reference strategy** (`TrendFollowingV1`) used
+> to demonstrate the end-to-end architecture. The strategy variant actually
+> deployed live (calibrated parameters, additional regime filters) is kept
+> private — only its **broad outline** is described below.
 
 ---
 
-## 🎯 Ce que ce projet démontre
+## 🎯 What this project demonstrates
 
-- **Architecture logicielle propre** — couches découplées (`core`, `data`,
-  `strategy`, `risk`, `execution`, `portfolio`, `backtest`) avec une *règle de
-  dépendances* stricte : la stratégie ne connaît ni l'exchange, ni le risque, ni
-  le portefeuille. Tout transite par des objets `core` partagés.
-- **Intégration d'API temps réel** — récupération des données de marché Binance
-  (REST), gestion des klines, synchronisation multi-timeframe.
-- **Backtester walk-forward sans lookahead** — le signal est généré à la clôture
-  de la bougie *N*, l'entrée se fait à l'ouverture de *N+1*, et le multi-timeframe
-  est filtré par horodatage : **zéro fuite d'information future par construction**.
-- **Gestion du risque de niveau production** — sizing en *fixed-fractional*,
-  stop-loss basé sur l'ATR, prise partielle, break-even, trailing stop, et
-  garde-fous portefeuille (exposition max, pertes consécutives, perte journalière).
-- **Qualité & fiabilité** — suite de tests `pytest`, logs structurés (`structlog`),
-  configuration typée (`pydantic`), CLI ergonomique (`click`).
-- **Déployé pour de vrai** — tourne en paper trading **24/7** sur une VM cloud
-  Linux via un service `systemd` (voir [DEPLOYMENT.md](DEPLOYMENT.md)).
+- **Clean software architecture** — decoupled layers (`core`, `data`, `strategy`,
+  `risk`, `execution`, `portfolio`, `backtest`) with a strict *dependency rule*:
+  the strategy knows nothing about the exchange, the risk layer, or the portfolio.
+  Everything flows through shared `core` objects.
+- **Real-time API integration** — Binance market-data fetching (REST), kline
+  handling, multi-timeframe synchronization.
+- **Lookahead-free walk-forward backtester** — the signal is generated at the
+  close of candle *N*, the entry happens at the open of *N+1*, and the
+  multi-timeframe data is filtered by timestamp: **zero future-information leakage
+  by construction**.
+- **Production-grade risk management** — fixed-fractional position sizing,
+  ATR-based stop-loss, partial take-profit, break-even, trailing stop, plus
+  portfolio guardrails (max exposure, consecutive losses, daily loss limit).
+- **Quality & reliability** — `pytest` test suite, structured logging
+  (`structlog`), typed configuration (`pydantic`), ergonomic CLI (`click`).
+- **Actually deployed** — runs **24/7** in paper trading on a Linux cloud VM via a
+  `systemd` service (see [DEPLOYMENT.md](DEPLOYMENT.md)).
 
 ---
 
@@ -61,7 +60,7 @@ qui tourne en production.
                            Signal
                               │
                               ▼
-                  RiskManager.validate_signal()   ◄── garde-fous + sizing
+                  RiskManager.validate_signal()   ◄── guardrails + sizing
                               │
                               ▼
                         OrderRequest
@@ -73,7 +72,7 @@ qui tourne en production.
                             Order
                               │
                               ▼
-              PortfolioManager.open_position()      ◄── positions, PnL, historique
+              PortfolioManager.open_position()      ◄── positions, PnL, history
 ```
 
 | Mode      | DataProvider          | Executor       |
@@ -82,74 +81,73 @@ qui tourne en production.
 | paper     | `BinanceFetcher`      | `PaperExecutor`|
 | live      | `BinanceFetcher`      | `LiveExecutor` |
 
-**La stratégie et le RiskManager sont identiques dans les trois modes.** C'est la
-garantie centrale du projet : *ce que l'on backteste est ce qui tourne en live*.
+**The strategy and the RiskManager are identical across all three modes.** This is
+the central guarantee of the project: *what you backtest is what runs live*.
 
-### Règle de dépendances
+### Dependency rule
 
-- `strategy` ne dépend ni de `exchange`, ni de `risk`, ni de `portfolio`.
-- `risk` ne dépend ni de `exchange`, ni de `strategy`.
-- Tout passe par les modèles `core` (`Candle`, `Signal`, `OrderRequest`, `Order`,
-  `Position`, `Trade`…).
-
----
-
-## 🧠 La stratégie (grandes lignes)
-
-La stratégie de référence est un **trend-following multi-timeframe long-only** :
-
-1. **Filtre de tendance** sur le timeframe lent (4h) — structure de moyennes
-   mobiles + pente, pour ne trader que dans le sens de la tendance de fond.
-2. **Confirmation** sur le timeframe rapide (1h) — alignement prix / moyennes.
-3. **Filtres de qualité de marché** — volatilité et participation (volume)
-   suffisantes pour éviter les faux signaux en marché atone.
-4. **Setups d'entrée** — *breakout* de plus-haut récent **ou** *pullback* de
-   continuation sur moyenne mobile.
-
-**Gestion de position** : stop-loss basé sur l'ATR, prise partielle à un multiple
-de risque (1R), passage à break-even, puis *trailing stop* sur le solde. Risque
-limité à un faible pourcentage du capital par trade, avec plafonds au niveau du
-portefeuille.
-
-> La variante déployée en production ajoute une calibration des paramètres et des
-> filtres de régime de marché supplémentaires — non inclus dans ce dépôt vitrine.
+- `strategy` depends on neither `exchange`, `risk`, nor `portfolio`.
+- `risk` depends on neither `exchange` nor `strategy`.
+- Everything flows through the `core` models (`Candle`, `Signal`, `OrderRequest`,
+  `Order`, `Position`, `Trade`…).
 
 ---
 
-## 📊 Résultats (validation cross-actifs, agrégés)
+## 🧠 The strategy (broad outline)
 
-Méthodologie : backtest *walk-forward* sur **3 ans de données (2022–2024)**,
-appliqué à **6 actifs majeurs** (BTC, ETH, BNB, SOL, XRP, ADA) sur plusieurs
-sous-périodes, frais et slippage simulés.
+The reference strategy is a **multi-timeframe, long-only trend-following** system:
 
-| Métrique                              | Valeur (agrégée)        |
-|---------------------------------------|-------------------------|
-| Période testée                        | 2022 → 2024 (3 ans)     |
-| Combinaisons actif × période positives| ~72 %                   |
-| Drawdown maximum observé              | < 3,5 %                 |
-| Risque par trade                      | 1 % du capital          |
+1. **Trend filter** on the slow timeframe (4h) — moving-average structure + slope,
+   to trade only in the direction of the underlying trend.
+2. **Confirmation** on the fast timeframe (1h) — price / moving-average alignment.
+3. **Market-quality filters** — sufficient volatility and participation (volume) to
+   avoid false signals in flat markets.
+4. **Entry setups** — recent-high *breakout* **or** continuation *pullback* onto a
+   moving average.
 
-> Chiffres agrégés à titre d'illustration de la **démarche** (robustesse
-> cross-actifs, contrôle du drawdown). Les performances passées en backtest ne
-> préjugent pas des performances futures. **Ceci n'est pas un conseil financier.**
+**Position management**: ATR-based stop-loss, partial take-profit at a risk
+multiple (1R), move to break-even, then *trailing stop* on the remainder. Risk
+capped at a small percentage of capital per trade, with portfolio-level ceilings.
+
+> The production variant adds parameter calibration and additional market-regime
+> filters — not included in this showcase repository.
 
 ---
 
-## 🚀 Démarrage rapide
+## 📊 Results (cross-asset validation, aggregated)
 
-### Prérequis
+Methodology: *walk-forward* backtest over **3 years of data (2022–2024)**, applied
+to **6 major assets** (BTC, ETH, BNB, SOL, XRP, ADA) across multiple sub-periods,
+with simulated fees and slippage.
+
+| Metric                              | Value (aggregated)      |
+|-------------------------------------|-------------------------|
+| Tested period                       | 2022 → 2024 (3 years)   |
+| Positive asset × period combinations| ~72 %                   |
+| Maximum observed drawdown           | < 3.5 %                 |
+| Risk per trade                      | 1 % of capital          |
+
+> Aggregated figures shown to illustrate the **approach** (cross-asset robustness,
+> drawdown control). Past backtested performance does not guarantee future results.
+> **This is not financial advice.**
+
+---
+
+## 🚀 Quick start
+
+### Requirements
 - Python 3.11+
 
 ### Installation
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate        # Windows : .venv\Scripts\activate
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
-cp .env.example .env             # éditer si besoin (clés optionnelles pour le paper)
+cp .env.example .env             # edit if needed (keys optional for paper mode)
 ```
 
-### Télécharger des données (API publique, aucune clé requise)
+### Download data (public API, no key required)
 
 ```bash
 python main.py data download --symbol BTCUSDT --timeframe 1h --start 2023-01-01
@@ -157,70 +155,69 @@ python main.py data download --symbol BTCUSDT --timeframe 4h --start 2023-01-01
 python main.py data info
 ```
 
-### Lancer un backtest
+### Run a backtest
 
 ```bash
 python main.py backtest --symbols BTCUSDT,ETHUSDT --start 2024-01-01 --end 2024-12-31
-python main.py backtest --symbol BTCUSDT --start 2024-01-01 --verbose   # mode démo pas-à-pas
+python main.py backtest --symbol BTCUSDT --start 2024-01-01 --verbose   # step-by-step demo mode
 ```
 
-### Paper trading (données live, ordres simulés)
+### Paper trading (live data, simulated orders)
 
 ```bash
 python main.py paper
 python main.py paper --symbols BTCUSDT,ETHUSDT
 ```
 
-### Vérifier la configuration / lancer les tests
+### Check configuration / run tests
 
 ```bash
 python main.py check
 pytest
 ```
 
-Des scripts Windows (`run_backtest.bat`, `run_demo.bat`, `run_tests.bat`,
-`run_data_download.bat`) sont fournis pour aller plus vite.
+Windows helper scripts (`run_backtest.bat`, `run_demo.bat`, `run_tests.bat`,
+`run_data_download.bat`) are provided for convenience.
 
 ---
 
-## 📁 Structure du projet
+## 📁 Project structure
 
 ```
 .
-├── main.py                  # Point d'entrée CLI
-├── config/                  # Settings (.env) + trading_config.yaml (typé pydantic)
-├── core/                    # Modèles, enums, exceptions, logger — aucune dépendance externe
-├── data/                    # DataProvider, fetcher Binance, cache, loader, validateur
-├── exchange/                # Interface exchange + implémentation Binance Spot
-├── strategy/                # StrategyBase, indicateurs, stratégie de référence V1
+├── main.py                  # CLI entry point
+├── config/                  # Settings (.env) + trading_config.yaml (pydantic-typed)
+├── core/                    # Models, enums, exceptions, logger — no external deps
+├── data/                    # DataProvider, Binance fetcher, cache, loader, validator
+├── exchange/                # Exchange interface + Binance Spot implementation
+├── strategy/                # StrategyBase, indicators, reference strategy V1
 ├── risk/                    # RiskManager + position sizing
-├── execution/               # Executors paper & live
-├── portfolio/               # Suivi des positions, PnL, historique
-├── backtest/                # Moteur walk-forward + métriques + reporting
-├── notifications/           # Notifier Telegram (optionnel)
-├── storage/                 # Persistance SQLite (SQLAlchemy)
-├── runtime/                 # Boucle de paper trading temps réel
-├── cli/                     # Commandes Click (check, data, backtest, paper, live)
-├── tests/                   # Suite pytest
-└── deploy/                  # Exemple de service systemd
+├── execution/               # Paper & live executors
+├── portfolio/               # Position tracking, PnL, history
+├── backtest/                # Walk-forward engine + metrics + reporting
+├── notifications/           # Telegram notifier (optional)
+├── storage/                 # SQLite persistence (SQLAlchemy)
+├── runtime/                 # Real-time paper trading loop
+├── cli/                     # Click commands (check, data, backtest, paper, live)
+├── tests/                   # pytest suite
+└── deploy/                  # systemd service example
 ```
 
 ---
 
-## 🛠️ Stack technique
+## 🛠️ Tech stack
 
 `Python 3.11` · `pandas` / `numpy` · `pydantic` · `click` · `structlog` ·
 `python-binance` · `SQLAlchemy` · `pytest`
 
 ---
 
-## ⚠️ Avertissement
+## ⚠️ Disclaimer
 
-Projet à but pédagogique et de démonstration technique. Le trading de
-crypto-actifs comporte un risque de perte en capital. **Ce dépôt ne constitue
-pas un conseil en investissement.** Utilisez le mode `live` à vos propres risques,
-avec des clés API restreintes (spot, sans retrait).
+Educational and technical-demonstration project. Trading crypto assets carries a
+risk of capital loss. **This repository is not investment advice.** Use `live` mode
+at your own risk, with restricted API keys (spot only, no withdrawal).
 
-## 📄 Licence
+## 📄 License
 
-[MIT](LICENSE) — pensez à renseigner votre nom dans le fichier `LICENSE`.
+[MIT](LICENSE)
