@@ -126,8 +126,14 @@ class TestBinanceDownloader:
                 datetime(2024, 12, 31, tzinfo=timezone.utc),
             )
 
+    @pytest.mark.network
     def test_make_public_client_returns_client(self):
-        """make_public_client doit retourner un objet Client."""
+        """make_public_client doit retourner un objet Client.
+
+        Marqué `network` : instancie un vrai client Binance (appel réseau).
+        Exclu en CI (-m "not network") car l'API Binance est géo-restreinte
+        sur certains environnements d'intégration continue.
+        """
         from binance.client import Client
         client = BinanceDownloader.make_public_client()
         assert isinstance(client, Client)

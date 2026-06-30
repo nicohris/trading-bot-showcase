@@ -34,4 +34,4 @@ jobs:
         continue-on-error: true
 
       - name: Run tests
-        run: pytest -q --tb=short
+        run: pytest -q --tb=short -m "not network"

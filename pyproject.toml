@@ -56,6 +56,9 @@ where = ["."]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+markers = [
+    "network: tests requiring live network access (e.g. Binance API); excluded in CI",
+]
 
 [tool.ruff]
 line-length = 100
