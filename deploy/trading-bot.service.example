@@ -1,0 +1,24 @@
+# Exemple de service systemd pour exécuter le bot en paper trading 24/7.
+# Copier en /etc/systemd/system/trading-bot.service puis remplacer les
+# placeholders <...> par vos valeurs, et exécuter :
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now trading-bot
+
+[Unit]
+Description=Crypto Trading Bot — paper trading
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=<SERVICE_USER>
+WorkingDirectory=<APP_DIR>
+EnvironmentFile=<APP_DIR>/.env
+ExecStart=<APP_DIR>/.venv/bin/python main.py paper
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:<APP_DIR>/logs/paper.log
+StandardError=append:<APP_DIR>/logs/paper.log
+
+[Install]
+WantedBy=multi-user.target

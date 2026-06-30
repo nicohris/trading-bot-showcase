@@ -1,0 +1,83 @@
+# =============================================================================
+# Configuration trading — stratégie de référence TrendFollowingV1
+# =============================================================================
+# Ce fichier est un EXEMPLE de référence destiné à faire tourner la stratégie
+# de démonstration livrée dans ce dépôt. Les valeurs ci-dessous sont des
+# réglages standards de manuel (EMA 50/200, ATR 14, etc.), pas des paramètres
+# optimisés. Ajustez-les à votre univers et à votre tolérance au risque.
+
+# Marchés
+# enabled: true  → tradé / surveillé
+# enabled: false → ignoré (laissé comme exemple d'extension multi-actifs)
+markets:
+  - symbol: "BTCUSDT"
+    base: "BTC"
+    quote: "USDT"
+    enabled: true
+  - symbol: "ETHUSDT"
+    base: "ETH"
+    quote: "USDT"
+    enabled: true
+  - symbol: "BNBUSDT"
+    base: "BNB"
+    quote: "USDT"
+    enabled: false
+  - symbol: "SOLUSDT"
+    base: "SOL"
+    quote: "USDT"
+    enabled: false
+
+# Timeframes utilisés par la stratégie de référence
+timeframes:
+  trend: "4h"      # filtre de tendance (macro)
+  execution: "1h"  # signaux d'entrée (micro)
+
+# Stratégie active (voir strategy/v1_trend_following.py)
+strategy:
+  name: "TrendFollowingV1"
+
+  # Indicateurs de tendance
+  ema_fast: 50
+  ema_slow: 200
+  ema_pullback: 20
+
+  # Indicateurs de qualité de marché
+  atr_period: 14
+  atr_ma_period: 20
+  volume_ma_period: 20
+
+  # Setup breakout
+  breakout_lookback: 20
+
+  # Pullback : tolérance de proximité à l'EMA, en multiples d'ATR
+  pullback_proximity_atr: 0.5
+
+# Gestion du risque
+risk:
+  risk_per_trade_pct: 1.0          # 1 % du capital risqué par trade
+  max_open_positions: 4            # positions simultanées max (portefeuille)
+  max_total_exposure_pct: 100.0    # contrôlé via max_open_positions + ATR sizing
+  max_positions_per_symbol: 1      # 1 position max par actif
+
+  stop_atr_multiplier: 1.5         # stop initial = entrée − 1.5 × ATR
+  partial_take_at_r: 1.0           # prise partielle à +1R
+  partial_take_pct: 50.0           # 50 % de la position prise au TP1
+  break_even_at_r: 1.0             # stop ramené à l'entrée après le TP1
+  trailing_atr_multiplier: 1.5     # trailing stop sur le solde restant
+
+  max_daily_loss_pct: 3.0          # pause si perte journalière > 3 %
+  max_consecutive_losses: 3        # pause après 3 pertes d'affilée
+
+# Backtest
+backtest:
+  initial_capital: 10000.0
+  fee_rate: 0.001                  # 0.10 % par ordre (frais Binance Spot)
+  slippage_pct: 0.05               # 0.05 % de slippage simulé
+
+# Notifications (Telegram — optionnel, activé si credentials présents)
+notifications:
+  on_trade_open: true
+  on_trade_close: true
+  on_daily_summary: true
+  on_risk_breach: true
+  on_error: true

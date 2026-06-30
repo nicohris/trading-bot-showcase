@@ -1,0 +1,52 @@
+# Environnement & secrets
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Tests & couverture
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Données de marché (ne pas versionner — re-téléchargeables via la CLI)
+data/cache/*.csv
+data/cache/*.parquet
+data/*.db
+data/*.sqlite
+
+# Logs & sorties générées
+logs/*.log
+logs/*.jsonl
+outputs/*.csv
+outputs/*.json
+
+# Garder les dossiers (mais pas leur contenu généré)
+!data/cache/.gitkeep
+!logs/.gitkeep
+!outputs/.gitkeep
+
+# Clés / credentials (sécurité — ne jamais committer)
+*.key
+*.pem
+*_secret*
+credentials*.json
